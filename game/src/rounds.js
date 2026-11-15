@@ -3,7 +3,7 @@
 // rewards, win/loss bonuses with a loss streak, and weapons that stay with
 // you only if you survive. First to 5 rounds, at most 9.
 
-import { giveWeapon, WEAPONS, GRENADE_PRICE, KEVLAR_PRICE } from './weapons.js';
+import { giveWeapon, WEAPONS, GRENADE_PRICE, KEVLAR_PRICE, SMOKE_PRICE, HELMET_PRICE } from './weapons.js';
 
 export const BUY_TIME = 20;
 export const ROUND_TIME = 100;
@@ -28,7 +28,7 @@ function resetAgentForRound(G, a, spawn, yaw) {
   a.group.visible = true;
   a.group.position.copy(a.pos);
   a.planting = 0; a.defusing = 0; a.bloom = 0; a.reloading = 0;
-  a.grenades = 0;
+  a.grenades = 0; a.smokes = 0; a.helmet = false;
   a.hasBomb = false;
 }
 
@@ -44,7 +44,7 @@ export function startRound(G, n) {
     const yaw = a.team === 'K' ? 0 : Math.PI;
     const survived = a.alive;
     resetAgentForRound(G, a, spawn, yaw);
-    if (!survived) { a.armor = 0; a.stash = {}; a.owned = []; } // death loses kevlar and guns
+    if (!survived) { a.armor = 0; a.helmet = false; a.stash = {}; a.owned = []; } // death loses kevlar, helmet and guns
     if (!survived || !a.weapon) giveWeapon(G, a, 'pistol');
     else giveWeapon(G, a, a.weapon); // fresh magazines, same gun
     if (a.isBot) {
@@ -52,6 +52,7 @@ export function startRound(G, n) {
       if (a.money >= 2700 && a.weapon === 'pistol') giveWeapon(G, a, 'rifle');
       else if (a.money >= 1500 && a.weapon === 'pistol') giveWeapon(G, a, 'smg');
       if (a.money >= 650 && a.armor === 0 && Math.random() < 0.5) { a.armor = 100; a.money -= 650; }
+      if (a.money >= 300 && Math.random() < 0.4) { a.smokes = 1; a.money -= 300; }
     }
   }
   // The Spike starts with the player.
@@ -63,6 +64,9 @@ export function startRound(G, n) {
     const caller = kBots[Math.floor(Math.random() * kBots.length)];
     const site = caller && caller.ai ? caller.ai.site || 'A' : 'A';
     if (caller) G.say(caller, n === 1 ? `executing ${site} — go go go` : `round ${n}: hit ${site} together`);
+    // The round plan shows under the top bar: site + the player's job.
+    G.plan = site === 'B' ? 'PLAN: SPLIT B — YOU: ENTRY' : 'PLAN: SPLIT A — YOU: ENTRY';
+    G._planT = 12;
   }
   if (G.showBanner) G.showBanner(`ROUND ${n}`, 'Buy phase — B opens the shop', 2.5);
   if (G.sfx) G.sfx.horn();
@@ -100,6 +104,14 @@ export function buyWeapon(G, a, id) {
   if (id === 'kevlar') {
     if (a.armor >= 100 || a.money < KEVLAR_PRICE) return false;
     a.money -= KEVLAR_PRICE; a.armor = 100; return true;
+  }
+  if (id === 'smoke') {
+    if ((a.smokes || 0) >= 2 || a.money < SMOKE_PRICE) return false;
+    a.money -= SMOKE_PRICE; a.smokes = (a.smokes || 0) + 1; return true;
+  }
+  if (id === 'helmet') {
+    if (a.helmet || a.money < HELMET_PRICE) return false;
+    a.money -= HELMET_PRICE; a.helmet = true; return true;
   }
   const w = WEAPONS[id];
   if (!w || a.money < w.price) return false;

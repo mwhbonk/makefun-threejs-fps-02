@@ -4,12 +4,12 @@
 
 import * as THREE from 'three';
 
-const POOL = { tracers: [], sparks: [] };
+const POOL = { tracers: [], sparks: [], smoke: [] };
 let boom = null;
 let boomLight = null;
 
 export function initEffects(G) {
-  const tracerGeo = new THREE.BoxGeometry(0.025, 0.025, 1);
+  const tracerGeo = new THREE.BoxGeometry(0.05, 0.05, 1);
   for (let i = 0; i < 24; i++) {
     const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({
       color: 0xffd27a, transparent: true, opacity: 0,
@@ -32,6 +32,16 @@ export function initEffects(G) {
   G.scene.add(boom);
   boomLight = new THREE.PointLight(0xff8a3a, 0, 18);
   G.scene.add(boomLight);
+  // Smoke cloud: six soft grey spheres, one system, reused per throw.
+  const smokeGeo = new THREE.SphereGeometry(1, 12, 10);
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(smokeGeo, new THREE.MeshBasicMaterial({
+      color: 0xcfc8bc, transparent: true, opacity: 0, depthWrite: false,
+    }));
+    m.visible = false;
+    G.scene.add(m);
+    POOL.smoke.push({ mesh: m, life: 0, off: new THREE.Vector3() });
+  }
 }
 
 function freeTracer() {
@@ -46,7 +56,7 @@ export function spawnTracer(G, from, to, color = 0xffd27a) {
   t.mesh.lookAt(to);
   t.mesh.scale.set(1, 1, len);
   t.mesh.material.color.setHex(color);
-  t.mesh.material.opacity = 0.85;
+  t.mesh.material.opacity = 1;
   t.mesh.visible = true;
   t.life = 0.07;
 }
@@ -80,11 +90,24 @@ export function spawnExplosion(G, pos) {
   boomLight.intensity = 60;
 }
 
+// Smoke cloud: six spheres around the burst point, 15 s of blocked sight.
+export function spawnSmoke(G, pos) {
+  for (const s of POOL.smoke) {
+    s.off.set((Math.random() - 0.5) * 1.8, 0.3 + Math.random() * 1.2, (Math.random() - 0.5) * 1.8);
+    s.mesh.position.copy(pos).add(s.off);
+    s.mesh.position.y = Math.max(0.6, s.mesh.position.y);
+    s.mesh.scale.setScalar(0.8 + Math.random() * 0.6);
+    s.mesh.material.opacity = 0.5;
+    s.mesh.visible = true;
+    s.life = 15;
+  }
+}
+
 export function updateEffects(G, dt) {
   for (const t of POOL.tracers) {
     if (t.life <= 0) continue;
     t.life -= dt;
-    t.mesh.material.opacity = Math.max(0, t.life / 0.07) * 0.85;
+    t.mesh.material.opacity = Math.max(0, t.life / 0.07);
     if (t.life <= 0) t.mesh.visible = false;
   }
   for (const s of POOL.sparks) {
@@ -102,5 +125,14 @@ export function updateEffects(G, dt) {
     boom.material.opacity = Math.max(0, 0.9 * (1 - k));
     boomLight.intensity = Math.max(0, 60 * (1 - k));
     if (boom.userData.life <= 0) { boom.visible = false; boomLight.intensity = 0; }
+  }
+  for (const s of POOL.smoke) {
+    if (s.life <= 0) continue;
+    s.life -= dt;
+    // Grow slowly, drift up, fade in the last 2 s.
+    s.mesh.scale.multiplyScalar(1 + dt * 0.03);
+    s.mesh.position.y += dt * 0.05;
+    s.mesh.material.opacity = 0.5 * Math.min(1, s.life / 2);
+    if (s.life <= 0) s.mesh.visible = false;
   }
 }

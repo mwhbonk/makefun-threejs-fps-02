@@ -4,7 +4,7 @@
 // the move or holding the trigger open is punished by design.
 
 import * as THREE from 'three';
-import { spawnTracer, spawnMuzzle, spawnImpact, spawnExplosion } from './effects.js';
+import { spawnTracer, spawnMuzzle, spawnImpact, spawnExplosion, spawnSmoke } from './effects.js';
 import { sfx } from './audio.js';
 
 export const WEAPONS = {
@@ -15,6 +15,8 @@ export const WEAPONS = {
 };
 export const GRENADE_PRICE = 300;
 export const KEVLAR_PRICE = 650;
+export const SMOKE_PRICE = 300;
+export const HELMET_PRICE = 350;
 
 export function giveWeapon(G, a, id) {
   const w = WEAPONS[id];
@@ -99,7 +101,9 @@ export function fire(G, a, dirOverride) {
     if (h.object.userData.agent) {
       const t = h.object.userData.agent;
       const isHead = h.object.userData.part === 'head';
-      damageAgent(G, t, w.dmg * (isHead ? w.headMul : 1), a, isHead);
+      // A helmet caps headshot damage at x2 — it never makes a headshot free.
+      const mul = isHead ? (t.helmet ? Math.min(w.headMul, 2) : w.headMul) : 1;
+      damageAgent(G, t, w.dmg * mul, a, isHead);
       if (a.isPlayer) { G.hitmark = isHead ? 'head' : 'body'; G.hitmarkT = G.time; sfx.hit(isHead); }
     } else {
       spawnImpact(G, h.point, h.face ? h.face.normal : null);
@@ -150,6 +154,20 @@ export function updateWeapons(G, dt) {
       G.grenades.splice(i, 1);
     }
   }
+  // Smoke grenades in flight — same arc, then a 15 s sight-blocking cloud.
+  G.smokes = G.smokes || [];
+  for (let i = G.smokes.length - 1; i >= 0; i--) {
+    const g = G.smokes[i];
+    g.vel.y -= 14 * dt;
+    g.pos.addScaledVector(g.vel, dt);
+    if (g.pos.y < 0.12) { g.pos.y = 0.12; g.vel.y *= -0.45; g.vel.x *= 0.7; g.vel.z *= 0.7; }
+    g.t -= dt;
+    if (g.t <= 0) {
+      spawnSmoke(G, g.pos);
+      sfx.explosion();
+      G.smokes.splice(i, 1);
+    }
+  }
 }
 
 export function throwGrenade(G, a) {
@@ -165,6 +183,21 @@ export function throwGrenade(G, a) {
   return true;
 }
 
+// Smoke grenade: no damage, a 15 s cloud that blocks sight lines.
+export function throwSmokeGrenade(G, a) {
+  if (!a.alive || (a.smokes || 0) <= 0) return false;
+  a.smokes--;
+  const dir = aimDir(a);
+  G.smokes = G.smokes || [];
+  G.smokes.push({
+    pos: new THREE.Vector3(a.pos.x, a.pos.y + 1.5, a.pos.z),
+    vel: dir.multiplyScalar(11).add(new THREE.Vector3(0, 4, 0)),
+    t: 1.4, from: a,
+  });
+  sfx.throwIt();
+  return true;
+}
+
 function explodeGrenade(G, g) {
   spawnExplosion(G, g.pos);
   sfx.explosion();
@@ -175,22 +208,46 @@ function explodeGrenade(G, g) {
   }
 }
 
-// First-person viewmodel: a low-poly gun that bobs and kicks.
+// First-person viewmodel: a chunky low-poly gun with a gloved hand, a
+// handguard and a barrel — it reads as a weapon, not a black bar.
 export function createViewmodel(G) {
   const grp = new THREE.Group();
   const dark = new THREE.MeshStandardMaterial({ color: 0x232a33, roughness: 0.6, metalness: 0.4 });
   const accent = new THREE.MeshStandardMaterial({ color: 0xf5a623, roughness: 0.5, metalness: 0.3 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.11, 0.5), dark);
+  const glove = new THREE.MeshStandardMaterial({ color: 0x3d4a35, roughness: 0.95 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.55), dark);
   grp.add(body);
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.09), dark);
-  grip.position.set(0, -0.12, 0.15); grp.add(grip);
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.025, 0.32), accent);
-  stripe.position.set(0, 0.04, -0.04); grp.add(stripe);
-  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.24),
-    new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, side: THREE.DoubleSide }));
-  flash.position.set(0, 0.02, -0.34); grp.add(flash);
-  grp.scale.setScalar(0.65);
-  grp.position.set(0.26, -0.27, -0.5);
+  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.09, 0.28), dark);
+  handguard.position.set(0, -0.01, -0.3); grp.add(handguard);
+  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.22), dark);
+  barrel.position.set(0, 0.01, -0.5); grp.add(barrel);
+  const sight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.06, 0.04), accent);
+  sight.position.set(0, 0.09, -0.42); grp.add(sight);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.17, 0.1), dark);
+  grip.position.set(0, -0.13, 0.16); grp.add(grip);
+  const hand = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.13), glove);
+  hand.position.set(0, -0.1, 0.05); grp.add(hand);
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.1), dark);
+  mag.position.set(0, -0.13, -0.05); grp.add(mag);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.025, 0.32), accent);
+  stripe.position.set(0, 0.05, -0.04); grp.add(stripe);
+  // Muzzle flash: a radial star texture, not a white card.
+  const fc = document.createElement('canvas');
+  fc.width = 64; fc.height = 64;
+  const fg = fc.getContext('2d');
+  const grad = fg.createRadialGradient(32, 32, 2, 32, 32, 30);
+  grad.addColorStop(0, 'rgba(255,255,230,1)');
+  grad.addColorStop(0.4, 'rgba(255,210,122,0.9)');
+  grad.addColorStop(1, 'rgba(255,140,40,0)');
+  fg.fillStyle = grad; fg.fillRect(0, 0, 64, 64);
+  fg.fillStyle = 'rgba(255,230,160,0.9)';
+  fg.fillRect(30, 2, 4, 60); fg.fillRect(2, 30, 60, 4);
+  const flashTex = new THREE.CanvasTexture(fc);
+  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22),
+    new THREE.MeshBasicMaterial({ map: flashTex, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  flash.position.set(0, 0.02, -0.62); grp.add(flash);
+  grp.scale.setScalar(0.8);
+  grp.position.set(0.3, -0.3, -0.55);
   G.camera.add(grp);
   G.viewmodel = grp; G.viewFlash = flash;
   return grp;
@@ -202,10 +259,10 @@ export function updateViewmodel(G, dt) {
   const speed = Math.hypot(p.vel.x, p.vel.z);
   const t = G.time * 9;
   const bob = p.onGround ? Math.min(1, speed / 5) * 0.012 : 0;
-  G.viewmodel.position.y = -0.26 + Math.sin(t * 2) * bob;
-  G.viewmodel.position.x = 0.28 + Math.cos(t) * bob * 0.6;
+  G.viewmodel.position.y = -0.3 + Math.sin(t * 2) * bob;
+  G.viewmodel.position.x = 0.3 + Math.cos(t) * bob * 0.6;
   const kick = G.viewKick || 0;
-  G.viewmodel.position.z = -0.5 + kick * 0.09;
+  G.viewmodel.position.z = -0.55 + kick * 0.09;
   G.viewKick = Math.max(0, kick - dt * 6);
   if (G.viewFlash) G.viewFlash.material.opacity = Math.max(0, (G.viewFlash.material.opacity || 0) - dt * 14);
 }

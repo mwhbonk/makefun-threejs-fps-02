@@ -2,12 +2,12 @@
 // reload, buy keys, grenade, weapon wheel. The overlay click is the only
 // gesture that locks the pointer; Escape unlocks and pauses the sim.
 
-import { fire, reloadWeapon, throwGrenade, giveWeapon, WEAPONS } from './weapons.js';
+import { fire, reloadWeapon, throwGrenade, throwSmokeGrenade, giveWeapon, WEAPONS } from './weapons.js';
 import { buyWeapon } from './rounds.js';
 import { toggleBuy } from './hud.js';
 import { sfx } from './audio.js';
 
-const BUY_IDS = ['pistol', 'smg', 'rifle', 'sniper', 'grenade', 'kevlar'];
+const BUY_IDS = ['pistol', 'smg', 'rifle', 'sniper', 'grenade', 'kevlar', 'smoke', 'helmet'];
 
 export function initInput(G) {
   const k = G.input.keys;
@@ -18,6 +18,7 @@ export function initInput(G) {
     if (e.code === 'KeyR') reloadWeapon(G, G.player);
     if (e.code === 'KeyB') { toggleBuy(G); sfx.click(); }
     if (e.code === 'KeyG') throwGrenade(G, G.player);
+    if (e.code === 'KeyH') throwSmokeGrenade(G, G.player);
     if (e.code === 'KeyM') sfx.toggleMute();
     if (G.buyOpen && e.code.startsWith('Digit')) {
       const n = parseInt(e.code.slice(5), 10) - 1;

@@ -44,11 +44,18 @@
   #bombbar .bar > div { background:#ff5252; }
   #banner { position:absolute; top:32%; left:50%; transform:translate(-50%,-50%); font-size:34px; font-weight:700; letter-spacing:2px; text-align:center; text-shadow:0 2px 12px #000; display:none; }
   #banner small { display:block; font-size:15px; letter-spacing:1px; opacity:.85; }
-  #buymenu { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:300px; padding:12px; pointer-events:auto; display:none; }
+  #buymenu { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:580px; padding:12px; pointer-events:auto; display:none; }
   #buymenu h2 { font-size:14px; color:var(--amber); margin-bottom:8px; }
+  #buyitems { display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:12px; }
+  #buyitems .col h3 { font-size:11px; letter-spacing:2px; opacity:.7; margin-bottom:4px; }
   #buymenu .item { display:flex; justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--line); font-size:13px; }
   #buymenu .item b { color:var(--amber); }
   #buymenu .item.cant { opacity:.45; }
+  #buymenu .item small { display:block; font-size:10px; opacity:.65; }
+  #plan { position:absolute; top:52px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:1px; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:3px 10px; display:none; }
+  #gear { font-size:11px; opacity:.85; margin-top:2px; }
+  .pips { font-size:10px; letter-spacing:1px; }
+  .pips.k { color:var(--amber); } .pips.h { color:var(--teal); }
   #buymenu .hint { font-size:11px; opacity:.7; margin-top:8px; }
   #vignette { position:absolute; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center, transparent 55%, rgba(200,0,0,.55) 100%); }
   #spectate { position:absolute; bottom:84px; left:50%; transform:translateX(-50%); font-size:13px; background:var(--panel); padding:5px 12px; border-radius:4px; display:none; }
@@ -78,7 +85,8 @@
 <body>
 <div id="game" oncontextmenu="return false"></div>
 <div id="hud">
-  <div id="topbar" class="panel"><span class="team k">KESTREL <b id="scoreK">0</b></span><span id="timer">1:40</span><span class="team h">HALCYON <b id="scoreH">0</b></span><span id="roundlabel">ROUND 1/9</span><span id="sidelabel">ATTACK</span></div>
+  <div id="topbar" class="panel"><span class="team k">KESTREL <b id="scoreK">0</b></span><span id="pipsK" class="pips k"></span><span id="timer">1:40</span><span id="pipsH" class="pips h"></span><span class="team h">HALCYON <b id="scoreH">0</b></span><span id="roundlabel">ROUND 1/9</span><span id="sidelabel">ATTACK</span></div>
+  <div id="plan"></div>
   <div id="killfeed"></div>
   <canvas id="minimap" width="172" height="136"></canvas>
   <div id="nametags"></div>
@@ -88,11 +96,11 @@
   <div id="crosshair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
   <div id="hitmarker"></div>
   <div id="healthbox" class="panel"><div class="row"><span>HEALTH <b id="hpnum">100</b></span><span>ARMOR <b id="armornum">0</b></span></div><div class="bar"><div id="healthbar" style="width:100%"></div></div><div class="bar" id="armorbar"><div style="width:0%"></div></div></div>
-  <div id="ammobox" class="panel"><div id="ammo">12 <small>/ 36</small></div><div id="weaponname">P9 SIDEARM</div><div id="money">$800</div></div>
+  <div id="ammobox" class="panel"><div id="ammo">12 <small>/ 36</small></div><div id="weaponname">P9 SIDEARM</div><div id="money">$800</div><div id="gear"></div></div>
   <div id="bombbar" class="panel" style="display:none">SPIKE ARMED<div class="bar"><div id="bombfill" style="width:100%"></div></div></div>
   <div id="banner"></div>
   <div id="plantbar" class="panel"><span id="plantlabel">PLANTING SPIKE</span><div class="bar"><div id="plantfill" style="width:0%"></div></div></div>
-  <div id="buymenu" class="panel"><h2>BUY — <span id="buymoney">$800</span> <span style="float:right" id="buytime">20s</span></h2><div id="buyitems"></div><div class="hint">Keys 1–6 to buy · B to close · weapons stay if you survive the round</div></div>
+  <div id="buymenu" class="panel"><h2>BUY — <span id="buymoney">$800</span> <span style="float:right" id="buytime">20s</span></h2><div id="buyitems"></div><div class="hint">Keys 1–8 to buy · B to close · G HE grenade · H smoke · weapons stay if you survive the round</div></div>
   <div id="vignette"></div>
   <div id="spectate">SPECTATING — wait for the round to end</div>
   <div id="startoverlay"><h1>DUSTLINE</h1><p>Round-based tactical FPS. Kestrel attacks, Halcyon defends. Plant the Spike at A or B — or eliminate the other team. Earn money, buy weapons between rounds. First to 5 rounds wins.</p><p class="keys">WASD move · Mouse look · Click shoot · R reload · Shift walk · Ctrl crouch · Space jump · E plant / defuse (hold) · B buy menu · G grenade · Wheel switch weapon · M mute</p><p>CLICK TO PLAY</p></div>

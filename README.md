@@ -24,7 +24,7 @@ Desktop Chrome (or any browser with WebGL 2). No build step, no network:
 ## Controls
 
 WASD move · Mouse look · Click shoot · R reload · Shift walk · Ctrl crouch ·
-Space jump · E plant / defuse (hold) · B buy menu · G grenade · Wheel switch weapon · M mute
+Space jump · E plant / defuse (hold) · B buy menu · G HE grenade · H smoke grenade · Wheel switch weapon · M mute
 
 ## The game
 
@@ -35,17 +35,23 @@ Space jump · E plant / defuse (hold) · B buy menu · G grenade · Wheel switch
   +$1900 (+$500 per consecutive loss, cap $3400). Weapons stay with you only
   if you survive the round.
 - **Arsenal:** P9 sidearm (free), Hornet SMG $1500, VKR-7 rifle $2700,
-  Longbow DMR $4750, Spark HE grenade $300, Kevlar vest $650.
+  Longbow DMR $4750, Spark HE grenade $300, Smoke grenade $300 (15 s
+  sight-blocking cloud), Kevlar vest $650, Helmet $350 (headshots capped ×2).
+- **Buy menu:** a three-column requisition board — weapons with damage / RPM
+  / magazine, gear, grenades — with Owned and Too expensive states.
 - **Gunplay:** hitscan with head/body split (headshots ×4), spread that grows
   with movement and bloom, recoil, crosshair that mirrors live spread.
 - **Bots:** 4 teammates + 5 opponents on a waypoint graph — they hold sites,
   push lanes in pairs, investigate gunfire, engage on line of sight, plant
   the Spike and converge to defuse it.
 - **Map:** "Kestrel Yard", an original 36×28 m dusk freight depot — Crane
-  Yard (A), Tank Farm (B), and a container lane through Mid.
+  Yard (A), Tank Farm (B), and a container lane through Mid. Brick walls,
+  paving-tile yard, corrugated stencilled containers, plank crates, a brick
+  chimney, bunting across mid, painted site letters, dusk clouds.
 - **HUD:** live minimap (teammates, spotted enemies, Spike), radio callouts
-  from the bots, zone label, floating name tags, and a weapon-slot bar —
-  the whole tactical picture at a glance.
+  from the bots, zone label, floating name tags, weapon-slot bar, alive pips
+  per team, the round plan line, and a grenade/gear readout — the whole
+  tactical picture at a glance.
 - **Sound:** every effect is synthesised with WebAudio; no audio files.
 
 ## Files

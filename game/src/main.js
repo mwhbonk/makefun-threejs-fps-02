@@ -11,7 +11,7 @@ import { newMatchState, startRound, updateRounds, endRound } from './rounds.js';
 import { sfx } from './audio.js';
 import { initInput, updateInput } from './input.js';
 import { initHud, updateHud, showBanner, addKillfeed, addRadio } from './hud.js';
-import { initEffects, updateEffects, spawnTracer } from './effects.js';
+import { initEffects, updateEffects, spawnTracer, spawnSmoke } from './effects.js';
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get('shot');
@@ -84,23 +84,30 @@ function setupShot(mode) {
   const place = (a, x, z, yaw) => { a.pos.set(x, 0, z); a.yaw = yaw; a.pitch = 0; a.group.position.copy(a.pos); };
   const spot = (a) => { a.spottedT = 99; }; // tags + minimap show in the frame
   if (mode === 'cover') {
-    // Live combat cover: tracer fire across mid lane, enemies in view, full HUD.
-    R.phase = 'live'; R.phaseT = 0; R.roundTime = 82;
-    place(G.player, 1.5, 9, -0.12);
-    place(hBots[0], 0, -1, Math.PI); place(hBots[1], 3.5, -3, Math.PI - 0.4);
-    place(hBots[2], -4.5, -4, Math.PI + 0.3);
-    place(kBots[0], -4, 7, 0.1); place(kBots[1], 4, 7.5, -0.1);
-    place(kBots[2], -2, 4, -0.3);
+    // Live combat cover, round 5: the player fires across open west-mid at
+    // a defender in the open, a teammate's tracer crosses the frame, smoke
+    // hangs at mid. No container wall between the camera and the fight.
+    R.round = 5; R.scoreK = 2; R.scoreH = 2;
+    R.phase = 'live'; R.phaseT = 0; R.roundTime = 96;
+    place(G.player, 0, 4.5, 0.35);
+    place(hBots[0], -2.5, -2, Math.PI - 0.35); place(hBots[1], -4.5, -0.5, Math.PI + 0.4);
+    place(hBots[2], 2, -4, Math.PI);
+    place(kBots[0], 2.5, 6.5, -0.3); place(kBots[1], -3, 7, 0.2);
+    place(kBots[2], 4, 3, -0.5);
     giveWeapon(G, G.player, 'rifle');
-    G.player.money = 3250;
-    G._coverShooter = kBots[0]; G._coverTarget = hBots[1];
+    G.player.money = 4200; G.player.armor = 100; G.player.helmet = true;
+    G.player.smokes = 1; G.player.grenades = 1;
+    G.plan = 'PLAN: SPLIT A — YOU: ENTRY'; G._planT = 12;
+    G._coverShooter = kBots[0]; G._coverTarget = hBots[0]; G._coverKill = hBots[1];
+    hBots[1].hp = 34; // one hit kills: the killfeed entry is then certain
     spot(hBots[0]); spot(hBots[1]); spot(hBots[2]);
     G.say(kBots[1], 'contact at mid lane — two at the crates');
     G.say(hBots[0], 'holding B, need one mid');
+    G.say(kBots[0], 'smoke going down mid');
   } else if (mode === 'plant') {
     // Planting the Spike at A: progress ring at ~60%, a defender in view.
     R.phase = 'live'; R.phaseT = 0; R.roundTime = 54;
-    place(G.player, -10.5, -4.8, 0.3);
+    place(G.player, -9.5, -3.5, 0.3);
     G.player.hasBomb = true;
     place(hBots[0], -15, -10.5, Math.PI - 0.5); place(hBots[1], -9.5, -11, Math.PI + 0.4);
     place(kBots[0], -13.5, -3.5, 0.2);
@@ -115,6 +122,7 @@ function setupShot(mode) {
     place(kBots[2], -6, 9, 0.2); place(kBots[3], 6, 9, -0.2);
     G.player.money = 5960;
     giveWeapon(G, G.player, 'smg');
+    G.player.smokes = 1;
     G.buyOpen = true;
     G.say(kBots[0], 'round 3: buy up, then hit B together');
   } else if (mode === 'end') {
@@ -122,8 +130,9 @@ function setupShot(mode) {
     R.phase = 'end'; R.phaseT = 4; R.scoreK = 1; R.winner = 'K'; R.reason = 'SPIKE DETONATED';
     R.bomb.planted = true; R.bomb.site = 'B'; R.bomb.timer = 0;
     R.bomb.pos = new THREE.Vector3(13, 0.1, -9);
-    place(G.player, 11, -6, -0.7);
-    place(kBots[0], 14, -8, -0.4); place(hBots[0], 15, -11, Math.PI);
+    G._planT = 0; // no plan line on the victory frame
+    place(G.player, 10, -5.5, -0.55);
+    place(kBots[0], 16, -5.5, -1.2); place(hBots[0], 15, -11, Math.PI);
     showBanner(G, 'KESTREL WINS THE ROUND', 'SPIKE DETONATED', 99);
   }
   void rnd;
@@ -133,7 +142,9 @@ function step(dt) {
   G.time += dt; G.tick++;
   updateInput(G, dt);
   if (G.rounds.phase === 'buy' || G.rounds.phase === 'live') stepPlayer(G, dt);
-  if (G.rounds.phase === 'live') stepBots(G, dt); // buy phase is safe: bots hold
+  // Shot setups freeze the bots: placements stay exactly where the shot
+  // put them, so no teammate wanders into the frame and no one dies off-script.
+  if (G.rounds.phase === 'live' && !G.shotMode) stepBots(G, dt); // buy phase is safe: bots hold
   updateWeapons(G, dt);
   updateRounds(G, dt);
   updateEffects(G, dt);
@@ -192,6 +203,10 @@ function frame(now) {
 if (SHOT) {
   setupShot(SHOT);
   for (let i = 0; i < 90; i++) step(1 / 60);
+  // The scripted shots below raycast the world: the meshes' matrixWorld
+  // is still identity until the first render, so refresh it first — without
+  // this, every ray hits a phantom wall sitting at the origin.
+  scene.updateMatrixWorld(true);
   if (SHOT === 'cover' && G._coverShooter && G._coverTarget) {
     // Guarantee a tracer across the frame: a teammate fires at a defender.
     const b = G._coverShooter, t = G._coverTarget;
@@ -200,13 +215,28 @@ if (SHOT) {
     const dir = to.clone().sub(from).normalize();
     fire(G, b, dir);
     spawnTracer(G, from, to);
+    // The player's own shots, all real sim damage: four at the far-left
+    // defender (enough to kill even if one misses — the killfeed entry is
+    // real), then the crosshair shot at the defender in front. Reset the
+    // recoil kick afterwards so the crosshair stays on the target.
+    const eye = new THREE.Vector3(G.player.pos.x, 1.62, G.player.pos.z);
+    const kill = G._coverKill;
+    if (kill && kill.alive) {
+      const kd = new THREE.Vector3(kill.pos.x, 1.3, kill.pos.z).sub(eye).normalize();
+      for (let i = 0; i < 4 && kill.alive; i++) { fire(G, G.player, kd); G.time += 0.14; }
+    }
+    const pdir = to.clone().sub(eye).normalize();
+    fire(G, G.player, pdir);
+    G.player.pitch = 0; G.player.yaw = 0.35;
+    // Smoke hanging at mid-left, visible but clear of the crosshair.
+    spawnSmoke(G, new THREE.Vector3(-1, 0.6, -5.5));
   }
   if (SHOT === 'plant' && G._plantAfter) G.player.planting = 2.1;
   if (SHOT === 'cover' || SHOT === 'plant') {
     G.bannerT = 0;
     document.getElementById('banner').style.display = 'none';
   }
-  if (SHOT === 'shop') showBanner(G, 'ROUND 3', 'Buy, then hit B together', 99);
+  if (SHOT === 'shop') showBanner(G, 'ROUND 3', '', 99);
   updateCamera();
   updateHud(G, 0);
   renderer.render(scene, camera);

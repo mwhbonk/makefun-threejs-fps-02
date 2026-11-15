@@ -2,21 +2,17 @@
 // only sets numbers on G; this module turns them into pixels.
 
 import * as THREE from 'three';
-import { WEAPONS, GRENADE_PRICE, KEVLAR_PRICE } from './weapons.js';
+import { WEAPONS, GRENADE_PRICE, KEVLAR_PRICE, SMOKE_PRICE, HELMET_PRICE } from './weapons.js';
 import { zoneAt } from './world.js';
 
 const el = {};
-const BUY_KEYS = [
-  ['pistol', '1'], ['smg', '2'], ['rifle', '3'], ['sniper', '4'],
-  ['grenade', '5'], ['kevlar', '6'],
-];
 
 export function initHud(G) {
   for (const id of ['scoreK', 'scoreH', 'timer', 'roundlabel', 'sidelabel', 'killfeed', 'crosshair',
     'hitmarker', 'hpnum', 'armornum', 'healthbar', 'armorbar', 'ammo', 'weaponname',
-    'money', 'bombbar', 'bombfill', 'banner', 'plantbar', 'plantlabel', 'plantfill',
+    'money', 'gear', 'bombbar', 'bombfill', 'banner', 'plantbar', 'plantlabel', 'plantfill',
     'buymenu', 'buymoney', 'buytime', 'buyitems', 'vignette', 'spectate', 'startoverlay',
-    'minimap', 'radio', 'location', 'slots', 'nametags']) {
+    'minimap', 'radio', 'location', 'slots', 'nametags', 'pipsK', 'pipsH', 'plan']) {
     el[id] = document.getElementById(id);
   }
   G._hud = el;
@@ -58,18 +54,26 @@ export function renderBuyMenu(G) {
   const p = G.player;
   // Rebuilding the menu's innerHTML every frame is wasteful; only rebuild
   // when something the menu shows has actually changed.
-  const sig = `${p.money}|${p.weapon}|${p.grenades}|${p.armor}`;
+  const sig = `${p.money}|${p.weapon}|${p.grenades}|${p.smokes}|${p.armor}|${p.helmet}`;
   if (G._buySig === sig) return;
   G._buySig = sig;
-  const rows = BUY_KEYS.map(([id, key]) => {
-    const w = WEAPONS[id];
-    const name = w ? w.name : id === 'grenade' ? 'SPARK HE GRENADE' : 'KEVLAR VEST';
-    const price = w ? w.price : id === 'grenade' ? GRENADE_PRICE : KEVLAR_PRICE;
-    const owned = id === 'grenade' ? p.grenades >= 2 : id === 'kevlar' ? p.armor >= 100 : p.weapon === id;
+  // Three columns like a real requisition board: weapons, gear, grenades.
+  const item = (id, key, name, stats, price, owned) => {
     const afford = p.money >= price && !owned;
-    return `<div class="item ${afford ? '' : 'cant'}"><span>[${key}] ${name}${owned ? ' ✓' : ''}</span><b>$${price}</b></div>`;
-  }).join('');
-  el.buyitems.innerHTML = rows;
+    return `<div class="item ${afford ? '' : 'cant'}"><span>[${key}] ${name}${owned ? ' ✓' : ''}<small>${stats}</small></span><b>$${price}</b></div>`;
+  };
+  const wRow = (id, key) => {
+    const w = WEAPONS[id];
+    return item(id, key, w.name, `${w.dmg} dmg · ${Math.round(60000 / w.rate)} rpm · ${w.mag}/${w.reserve}`, w.price, p.weapon === id);
+  };
+  el.buyitems.innerHTML = `<div class="col"><h3>WEAPONS</h3>`
+    + wRow('pistol', '1') + wRow('smg', '2') + wRow('rifle', '3') + wRow('sniper', '4') + `</div>`
+    + `<div class="col"><h3>GEAR</h3>`
+    + item('kevlar', '6', 'KEVLAR VEST', 'Body armour 100', KEVLAR_PRICE, p.armor >= 100)
+    + item('helmet', '8', 'HELMET', 'Headshots ×2', HELMET_PRICE, !!p.helmet) + `</div>`
+    + `<div class="col"><h3>GRENADES</h3>`
+    + item('grenade', '5', 'SPARK HE GRENADE', 'Blast up to 7 m', GRENADE_PRICE, p.grenades >= 2)
+    + item('smoke', '7', 'SMOKE GRENADE', '15 s cloud, blocks sight', SMOKE_PRICE, (p.smokes || 0) >= 2) + `</div>`;
 }
 
 export function toggleBuy(G) {
@@ -150,7 +154,7 @@ function renderNametags(G) {
 function renderSlots(G) {
   const p = G.player;
   const owned = p.owned || [];
-  const sig = `${owned.join(',')}|${p.weapon}|${p.grenades}|${p.armor > 0}`;
+  const sig = `${owned.join(',')}|${p.weapon}|${p.grenades}|${p.smokes}|${p.armor > 0}|${p.helmet}`;
   if (G._slotSig === sig) return;
   G._slotSig = sig;
   const defs = [['pistol', '1'], ['smg', '2'], ['rifle', '3'], ['sniper', '4']];
@@ -158,7 +162,9 @@ function renderSlots(G) {
     const has = owned.includes(id);
     const cur = p.weapon === id;
     return `<span class="${has ? 'owned' : ''} ${cur ? 'cur' : ''}">${key} ${WEAPONS[id].name}</span>`;
-  }).join('') + `<span class="${p.grenades ? 'owned' : ''}">G HE×${p.grenades}</span>`;
+  }).join('') + `<span class="${p.grenades ? 'owned' : ''}">G HE×${p.grenades}</span>`
+    + `<span class="${p.smokes ? 'owned' : ''}">7 SMOKE×${p.smokes || 0}</span>`
+    + `<span class="${p.helmet ? 'owned' : ''}">8 ⛑${p.helmet ? '' : '—'}</span>`;
 }
 
 export function updateHud(G, dt) {
@@ -169,6 +175,19 @@ export function updateHud(G, dt) {
   el.roundlabel.textContent = `ROUND ${Math.max(1, R.round)} OF 9`;
   el.sidelabel.textContent = p.team === 'K' ? 'ATTACK' : 'DEFEND';
   el.location.textContent = zoneAt(G.world, p.pos.x, p.pos.z);
+  // Alive pips: a square per living agent, so the scoreboard reads at a glance.
+  const aliveK = G.agents.filter((a) => a.alive && a.team === 'K').length;
+  const aliveH = G.agents.filter((a) => a.alive && a.team === 'H').length;
+  if (el.pipsK) el.pipsK.textContent = '■'.repeat(aliveK);
+  if (el.pipsH) el.pipsH.textContent = '■'.repeat(aliveH);
+  // Round plan: buy phase + the first seconds of the round.
+  if (el.plan) {
+    if (G._planT === undefined) G._planT = 0;
+    if (R.phase === 'buy') G._planT = 12;
+    G._planT = Math.max(0, G._planT - dt);
+    el.plan.textContent = G.plan || '';
+    el.plan.style.display = G._planT > 0 && G.plan ? 'block' : 'none';
+  }
   drawMinimap(G);
   renderNametags(G);
   renderSlots(G);
@@ -186,7 +205,8 @@ export function updateHud(G, dt) {
   const w = WEAPONS[p.weapon];
   el.ammo.innerHTML = p.reloading > 0 ? `RELOADING` : `${p.ammo.mag} <small>/ ${p.ammo.reserve}</small>`;
   el.weaponname.textContent = `${w.name}${p.hasBomb ? ' · SPIKE' : ''}`;
-  el.money.textContent = `$${p.money}${p.grenades ? ` · G×${p.grenades}` : ''}`;
+  el.money.textContent = `$${p.money}`;
+  if (el.gear) el.gear.textContent = `G HE×${p.grenades} · S SMOKE×${p.smokes || 0}${p.helmet ? ' · ⛑ HELMET' : ''}`;
   // Crosshair gap mirrors live spread: still = tight, moving/bloom = wide.
   const speed = Math.hypot(p.vel.x, p.vel.z);
   const gap = 6 + speed * 1.1 + p.bloom * 16;
