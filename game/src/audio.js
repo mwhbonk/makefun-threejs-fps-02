@@ -5,6 +5,13 @@
 let ctx = null;
 let master = null;
 let noiseBuf = null;
+let muted = false;
+
+export function toggleMute() {
+  muted = !muted;
+  if (master) master.gain.value = muted ? 0 : 0.32;
+  return muted;
+}
 
 function ensure() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume().catch(() => {}); return true; }
@@ -52,6 +59,8 @@ function tone(freq, dur, gain, type = 'sine', slideTo = null) {
 
 export const sfx = {
   unlock() { ensure(); },
+  toggleMute,
+  isMuted() { return muted; },
   shot(w) {
     if (w === 'sniper') { noise(0.35, 900, 0.9, 'lowpass', 120); tone(90, 0.25, 0.5, 'sine', 40); }
     else if (w === 'rifle') { noise(0.16, 1400, 0.7, 'bandpass', 300); tone(140, 0.1, 0.35, 'square', 70); }

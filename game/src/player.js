@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
+import { sfx } from './audio.js';
 
 export const EYE_STAND = 1.62;
 export const EYE_CROUCH = 1.15;
@@ -35,7 +36,7 @@ export function createAgent(G, { team, isBot, name, x, z, yaw }) {
     crouch: false, onGround: true, height: 1.7,
     weapon: 'pistol', ammo: { mag: 12, reserve: 36 }, reloading: 0,
     money: 800, kills: 0, deaths: 0, hasBomb: false,
-    planting: 0, defusing: 0, bloom: 0, lastShot: -999, lastHurt: -999,
+    planting: 0, defusing: 0, bloom: 0, lastShot: -999, lastHurt: -999, stepT: 0,
     group, bodyMesh: body, headMesh: head,
     ai: isBot ? { state: 'hold', path: [], wp: 0, repath: 0, burst: 0, cooldown: 0, lastKnown: null, holdPos: null, site: null, aimErr: 0, reaction: 0 } : null,
   };
@@ -106,4 +107,9 @@ export function stepPlayer(G, dt) {
   if (!p.onGround) speed = 4.6;
   moveAgent(G, p, dt, wx / len * (fx || fz ? 1 : 0), wz / len * (fx || fz ? 1 : 0), speed);
   p.bloom = Math.max(0, p.bloom - dt * 2.2);
+  // Footsteps: a soft thud on every stride while moving on the ground.
+  if (p.onGround && Math.hypot(p.vel.x, p.vel.z) > 1.5) {
+    p.stepT -= dt;
+    if (p.stepT <= 0) { sfx.step(); p.stepT = 0.34; }
+  }
 }

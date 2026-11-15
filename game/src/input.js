@@ -18,6 +18,7 @@ export function initInput(G) {
     if (e.code === 'KeyR') reloadWeapon(G, G.player);
     if (e.code === 'KeyB') { toggleBuy(G); sfx.click(); }
     if (e.code === 'KeyG') throwGrenade(G, G.player);
+    if (e.code === 'KeyM') sfx.toggleMute();
     if (G.buyOpen && e.code.startsWith('Digit')) {
       const n = parseInt(e.code.slice(5), 10) - 1;
       if (BUY_IDS[n] && buyWeapon(G, G.player, BUY_IDS[n])) sfx.click();

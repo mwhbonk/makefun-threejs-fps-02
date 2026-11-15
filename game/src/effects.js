@@ -38,13 +38,14 @@ function freeTracer() {
   return POOL.tracers.find((t) => t.life <= 0) || POOL.tracers[0];
 }
 
-export function spawnTracer(G, from, to) {
+export function spawnTracer(G, from, to, color = 0xffd27a) {
   const t = freeTracer();
   const len = from.distanceTo(to);
   if (len < 0.5) return;
   t.mesh.position.copy(from).add(to).multiplyScalar(0.5);
   t.mesh.lookAt(to);
   t.mesh.scale.set(1, 1, len);
+  t.mesh.material.color.setHex(color);
   t.mesh.material.opacity = 0.85;
   t.mesh.visible = true;
   t.life = 0.07;

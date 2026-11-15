@@ -43,6 +43,11 @@ export function addKillfeed(G, attacker, victim, head) {
 
 export function renderBuyMenu(G) {
   const p = G.player;
+  // Rebuilding the menu's innerHTML every frame is wasteful; only rebuild
+  // when something the menu shows has actually changed.
+  const sig = `${p.money}|${p.weapon}|${p.grenades}|${p.armor}`;
+  if (G._buySig === sig) return;
+  G._buySig = sig;
   const rows = BUY_KEYS.map(([id, key]) => {
     const w = WEAPONS[id];
     const name = w ? w.name : id === 'grenade' ? 'SPARK HE GRENADE' : 'KEVLAR VEST';

@@ -83,6 +83,9 @@ export function fire(G, a, dirOverride) {
   const speed = Math.hypot(a.vel.x, a.vel.z);
   const spread = w.spread + speed * 0.004 + (a.onGround ? 0 : 0.02) + a.bloom * 0.03 + (a.crouch ? -0.004 : 0);
   const origin = new THREE.Vector3(a.pos.x, a.pos.y + (a.crouch ? 1.15 : 1.62), a.pos.z);
+  // Bots hear the shot: a recent shot within 25 m pulls them to investigate.
+  G.lastShotPos = origin.clone();
+  G.lastShotT = G.time;
   const dir = spreadDir(dirOverride ? dirOverride.clone() : aimDir(a), Math.max(0.002, spread));
   const rc = new THREE.Raycaster(origin, dir, 0.1, w.range);
   const targets = [];
@@ -101,7 +104,7 @@ export function fire(G, a, dirOverride) {
       spawnImpact(G, h.point, h.face ? h.face.normal : null);
     }
   }
-  spawnTracer(G, origin, end);
+  spawnTracer(G, origin, end, a.team === 'H' ? 0xff5a4a : 0xffd27a); // incoming fire reads red
   spawnMuzzle(G, a);
   sfx.shot(a.weapon);
   a.bloom = Math.min(1, a.bloom + (a.weapon === 'sniper' ? 0.5 : 0.12));

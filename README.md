@@ -22,7 +22,7 @@ Desktop Chrome (or any browser with WebGL 2). No build step, no network:
 ## Controls
 
 WASD move · Mouse look · Click shoot · R reload · Shift walk · Ctrl crouch ·
-Space jump · E plant / defuse (hold) · B buy menu · G grenade · Wheel switch weapon
+Space jump · E plant / defuse (hold) · B buy menu · G grenade · Wheel switch weapon · M mute
 
 ## The game
 

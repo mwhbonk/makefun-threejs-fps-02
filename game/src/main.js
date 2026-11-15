@@ -94,7 +94,7 @@ function setupShot(mode) {
     place(hBots[0], 0, -1, Math.PI); place(hBots[1], 3.5, -3, Math.PI - 0.4);
     place(hBots[2], -4.5, -4, Math.PI + 0.3);
     place(kBots[0], -4, 7, 0.1); place(kBots[1], 4, 7.5, -0.1);
-    G.player.weapon = 'rifle'; giveWeapon(G, G.player, 'rifle');
+    giveWeapon(G, G.player, 'rifle');
     G.player.money = 3250;
     G._playShooter = kBots[0]; G._playTarget = hBots[1];
   } else if (mode === 'plant') {
