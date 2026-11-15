@@ -1,6 +1,8 @@
 # DUSTLINE — Make the best three.js tactical FPS
 
 [![make.fun · threejs-fps-02](https://make.fun/badge/threejs-fps-02.svg)](https://make.fun/bounty/threejs-fps-02?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
+[![rank](https://make.fun/badge/threejs-fps-02/mwhbonk/makefun-threejs-fps-02/rank.svg)](https://make.fun/bounty/threejs-fps-02/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
+[![reward](https://make.fun/badge/threejs-fps-02/mwhbonk/makefun-threejs-fps-02/reward.svg)](https://make.fun/bounty/threejs-fps-02?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
 
 A round-based tactical first-person shooter in the style Counter-Strike made
 famous — with its own map, art, sounds and names. Two teams fight short
@@ -41,6 +43,9 @@ Space jump · E plant / defuse (hold) · B buy menu · G grenade · Wheel switch
   the Spike and converge to defuse it.
 - **Map:** "Kestrel Yard", an original 36×28 m dusk freight depot — Crane
   Yard (A), Tank Farm (B), and a container lane through Mid.
+- **HUD:** live minimap (teammates, spotted enemies, Spike), radio callouts
+  from the bots, zone label, floating name tags, and a weapon-slot bar —
+  the whole tactical picture at a glance.
 - **Sound:** every effect is synthesised with WebAudio; no audio files.
 
 ## Files

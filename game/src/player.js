@@ -24,6 +24,13 @@ export function createAgent(G, { team, isBot, name, x, z, yaw }) {
   const visor = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.08, 0.05),
     new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.7 }));
   visor.position.set(0, 1.64, 0.16); group.add(visor);
+  // Team trim: helmet stripe + shoulder pads, so friend/foe reads at range.
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.05, 0.32),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5 }));
+  stripe.position.set(0, 1.79, 0); group.add(stripe);
+  const padGeo = new THREE.BoxGeometry(0.14, 0.1, 0.34);
+  const padL = new THREE.Mesh(padGeo, cloth); padL.position.set(-0.32, 1.38, 0); group.add(padL);
+  const padR = new THREE.Mesh(padGeo, cloth); padR.position.set(0.32, 1.38, 0); group.add(padR);
   const gun = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.12, 0.85), dark);
   gun.position.set(0.25, 1.15, 0.3); group.add(gun);
   group.position.set(x, 0, z);
@@ -36,7 +43,7 @@ export function createAgent(G, { team, isBot, name, x, z, yaw }) {
     crouch: false, onGround: true, height: 1.7,
     weapon: 'pistol', ammo: { mag: 12, reserve: 36 }, reloading: 0,
     money: 800, kills: 0, deaths: 0, hasBomb: false,
-    planting: 0, defusing: 0, bloom: 0, lastShot: -999, lastHurt: -999, stepT: 0,
+    planting: 0, defusing: 0, bloom: 0, lastShot: -999, lastHurt: -999, stepT: 0, spottedT: -99,
     group, bodyMesh: body, headMesh: head,
     ai: isBot ? { state: 'hold', path: [], wp: 0, repath: 0, burst: 0, cooldown: 0, lastKnown: null, holdPos: null, site: null, aimErr: 0, reaction: 0 } : null,
   };

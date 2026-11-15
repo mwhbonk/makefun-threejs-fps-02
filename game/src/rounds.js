@@ -58,6 +58,12 @@ export function startRound(G, n) {
   G.player.hasBomb = true;
   R.bomb.carrier = G.player;
   if (G.assignBotRoles) G.assignBotRoles();
+  if (G.say) {
+    const kBots = G.agents.filter((a) => a.isBot && a.team === 'K');
+    const caller = kBots[Math.floor(Math.random() * kBots.length)];
+    const site = caller && caller.ai ? caller.ai.site || 'A' : 'A';
+    if (caller) G.say(caller, n === 1 ? `executing ${site} — go go go` : `round ${n}: hit ${site} together`);
+  }
   if (G.showBanner) G.showBanner(`ROUND ${n}`, 'Buy phase — B opens the shop', 2.5);
   if (G.sfx) G.sfx.horn();
 }
@@ -141,6 +147,7 @@ export function updateRounds(G, dt) {
           p.money += 300;
           if (G.showBanner) G.showBanner('SPIKE PLANTED', 'Halcyon must defuse', 3);
           if (G.sfx) G.sfx.plant();
+          if (G.say) G.say(p, `spike planted at site ${R.bomb.site}`);
         }
       } else p.planting = 0;
     } else if (R.bomb.planted && p.team === 'H') {

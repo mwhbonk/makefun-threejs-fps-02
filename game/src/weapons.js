@@ -48,6 +48,7 @@ export function damageAgent(G, target, dmg, attacker, isHead) {
   if (target.armor > 0) { dmg *= 0.75; target.armor = Math.max(0, target.armor - dmg * 0.5); }
   target.hp -= dmg;
   target.lastHurt = G.time;
+  target.spottedT = G.time; // damage marks the victim on the minimap
   if (target.isPlayer) G.hurtFlash = 1;
   if (target.hp <= 0) {
     target.hp = 0; target.alive = false; target.group.visible = false;
@@ -57,7 +58,7 @@ export function damageAgent(G, target, dmg, attacker, isHead) {
       attacker.money += 300; // kill reward
       if (attacker.isPlayer) G.hudKill = { victim: target.name, head: isHead };
     }
-    if (G.addKillfeed) G.addKillfeed(attacker, target, isHead);
+    if (G.addKillfeed) G.addKillfeed(attacker, target, isHead, attacker ? attacker.weapon : null);
     if (target.hasBomb) dropBomb(G, target);
   }
 }

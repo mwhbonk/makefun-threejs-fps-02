@@ -10,7 +10,7 @@ import { stepBots, assignBotRoles } from './bots.js';
 import { newMatchState, startRound, updateRounds, endRound } from './rounds.js';
 import { sfx } from './audio.js';
 import { initInput, updateInput } from './input.js';
-import { initHud, updateHud, showBanner, addKillfeed } from './hud.js';
+import { initHud, updateHud, showBanner, addKillfeed, addRadio } from './hud.js';
 import { initEffects, updateEffects, spawnTracer } from './effects.js';
 
 const params = new URLSearchParams(location.search);
@@ -47,7 +47,8 @@ const G = {
   shotMode: SHOT, spectateTarget: null, buyOpen: false, bannerT: 0,
   started: !!SHOT, sfx,
   showBanner: (t, s, d) => showBanner(G, t, s, d),
-  addKillfeed: (a, v, h) => addKillfeed(G, a, v, h),
+  addKillfeed: (a, v, h, w) => addKillfeed(G, a, v, h, w),
+  say: (who, text) => addRadio(G, who, text),
   assignBotRoles: () => assignBotRoles(G),
 };
 G.rounds.endRound = (w, r) => endRound(G, w, r);
@@ -81,22 +82,21 @@ function setupShot(mode) {
   const kBots = G.agents.filter((a) => a.isBot && a.team === 'K');
   const hBots = G.agents.filter((a) => a.isBot && a.team === 'H');
   const place = (a, x, z, yaw) => { a.pos.set(x, 0, z); a.yaw = yaw; a.pitch = 0; a.group.position.copy(a.pos); };
-  if (mode === 'start') {
-    // Buy phase at spawn, teammates ahead, mid lane in view, shop open.
-    place(G.player, 0, 11.5, 0.12);
-    place(kBots[0], -2.5, 6.5, 0); place(kBots[1], 2.5, 5.5, -0.1);
-    place(kBots[2], -6, 9, 0.2); place(kBots[3], 6, 9, -0.2);
-    G.buyOpen = true;
-  } else if (mode === 'play') {
-    // Mid-fight: two defenders in the lane, one teammate beside the player.
+  const spot = (a) => { a.spottedT = 99; }; // tags + minimap show in the frame
+  if (mode === 'cover') {
+    // Live combat cover: tracer fire across mid lane, enemies in view, full HUD.
     R.phase = 'live'; R.phaseT = 0; R.roundTime = 82;
     place(G.player, 1.5, 9, -0.12);
     place(hBots[0], 0, -1, Math.PI); place(hBots[1], 3.5, -3, Math.PI - 0.4);
     place(hBots[2], -4.5, -4, Math.PI + 0.3);
     place(kBots[0], -4, 7, 0.1); place(kBots[1], 4, 7.5, -0.1);
+    place(kBots[2], -2, 4, -0.3);
     giveWeapon(G, G.player, 'rifle');
     G.player.money = 3250;
-    G._playShooter = kBots[0]; G._playTarget = hBots[1];
+    G._coverShooter = kBots[0]; G._coverTarget = hBots[1];
+    spot(hBots[0]); spot(hBots[1]); spot(hBots[2]);
+    G.say(kBots[1], 'contact at mid lane — two at the crates');
+    G.say(hBots[0], 'holding B, need one mid');
   } else if (mode === 'plant') {
     // Planting the Spike at A: progress ring at ~60%, a defender in view.
     R.phase = 'live'; R.phaseT = 0; R.roundTime = 54;
@@ -104,7 +104,19 @@ function setupShot(mode) {
     G.player.hasBomb = true;
     place(hBots[0], -15, -10.5, Math.PI - 0.5); place(hBots[1], -9.5, -11, Math.PI + 0.4);
     place(kBots[0], -13.5, -3.5, 0.2);
+    spot(hBots[0]); spot(hBots[1]);
+    G.say(kBots[0], 'covering A — plant it');
     G._plantAfter = true;
+  } else if (mode === 'shop') {
+    // Buy phase, round 3: shop open, minimap + radio live, yard behind.
+    R.round = 3; R.scoreK = 1; R.scoreH = 1;
+    place(G.player, 0, 11.5, 0.12);
+    place(kBots[0], -2.5, 6.5, 0); place(kBots[1], 2.5, 5.5, -0.1);
+    place(kBots[2], -6, 9, 0.2); place(kBots[3], 6, 9, -0.2);
+    G.player.money = 5960;
+    giveWeapon(G, G.player, 'smg');
+    G.buyOpen = true;
+    G.say(kBots[0], 'round 3: buy up, then hit B together');
   } else if (mode === 'end') {
     // Round won: banner, 1–0, player at B site among the tanks.
     R.phase = 'end'; R.phaseT = 4; R.scoreK = 1; R.winner = 'K'; R.reason = 'SPIKE DETONATED';
@@ -180,9 +192,9 @@ function frame(now) {
 if (SHOT) {
   setupShot(SHOT);
   for (let i = 0; i < 90; i++) step(1 / 60);
-  if (SHOT === 'play' && G._playShooter && G._playTarget) {
+  if (SHOT === 'cover' && G._coverShooter && G._coverTarget) {
     // Guarantee a tracer across the frame: a teammate fires at a defender.
-    const b = G._playShooter, t = G._playTarget;
+    const b = G._coverShooter, t = G._coverTarget;
     const from = new THREE.Vector3(b.pos.x, 1.5, b.pos.z);
     const to = new THREE.Vector3(t.pos.x, 1.3, t.pos.z);
     const dir = to.clone().sub(from).normalize();
@@ -190,10 +202,11 @@ if (SHOT) {
     spawnTracer(G, from, to);
   }
   if (SHOT === 'plant' && G._plantAfter) G.player.planting = 2.1;
-  if (SHOT === 'play' || SHOT === 'plant') {
+  if (SHOT === 'cover' || SHOT === 'plant') {
     G.bannerT = 0;
     document.getElementById('banner').style.display = 'none';
   }
+  if (SHOT === 'shop') showBanner(G, 'ROUND 3', 'Buy, then hit B together', 99);
   updateCamera();
   updateHud(G, 0);
   renderer.render(scene, camera);

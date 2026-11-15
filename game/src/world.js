@@ -22,6 +22,19 @@ function groundTexture() {
     g.fillStyle = 'rgba(90,70,45,0.10)';
     g.beginPath(); g.ellipse(Math.random() * 256, Math.random() * 256, 12 + Math.random() * 26, 8 + Math.random() * 18, Math.random() * 3, 0, 7); g.fill();
   }
+  // Concrete slab joints.
+  g.strokeStyle = 'rgba(90,70,45,0.28)'; g.lineWidth = 2;
+  for (let i = 0; i <= 4; i++) {
+    g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 256); g.stroke();
+    g.beginPath(); g.moveTo(0, i * 64); g.lineTo(256, i * 64); g.stroke();
+  }
+  // Tire tracks along the lanes + oil stains.
+  g.fillStyle = 'rgba(70,55,35,0.16)';
+  g.fillRect(30, 0, 12, 256); g.fillRect(200, 0, 12, 256);
+  for (let i = 0; i < 8; i++) {
+    g.fillStyle = 'rgba(40,30,20,0.20)';
+    g.beginPath(); g.ellipse(Math.random() * 256, Math.random() * 256, 6 + Math.random() * 12, 4 + Math.random() * 8, Math.random() * 3, 0, 7); g.fill();
+  }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 5);
   return t;
@@ -45,11 +58,29 @@ export function buildWorld(scene) {
   const solids = [];      // meshes the hitscan raycaster tests (world only)
   const mat = (color, rough = 0.9) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0.05 });
 
-  scene.background = new THREE.Color(PALETTE.sky);
-  scene.fog = new THREE.Fog(PALETTE.sky, 22, 78);
+  // Dusk gradient dome + low sun disc: the sky reads in every screenshot.
+  const skyGeo = new THREE.SphereGeometry(150, 24, 16);
+  const skyColors = [];
+  const skyPos = skyGeo.attributes.position;
+  const top = new THREE.Color(0x232c4e), mid = new THREE.Color(0x7a4a5e), hor = new THREE.Color(0xff8a3c);
+  for (let i = 0; i < skyPos.count; i++) {
+    const y = skyPos.getY(i) / 150;
+    const c = y > 0.25 ? top.clone().lerp(mid, 1 - (y - 0.25) / 0.75) : mid.clone().lerp(hor, 1 - (y + 1) / 1.25);
+    skyColors.push(c.r, c.g, c.b);
+  }
+  skyGeo.setAttribute('color', new THREE.Float32BufferAttribute(skyColors, 3));
+  const sky = new THREE.Mesh(skyGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }));
+  scene.add(sky);
+  const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(9, 24),
+    new THREE.MeshBasicMaterial({ color: 0xffc46b, fog: false }));
+  sunDisc.position.set(-55, 16, -110); sunDisc.lookAt(0, 2, 0); scene.add(sunDisc);
+  const sunGlow = new THREE.Mesh(new THREE.CircleGeometry(16, 24),
+    new THREE.MeshBasicMaterial({ color: 0xff8a3c, transparent: true, opacity: 0.25, fog: false }));
+  sunGlow.position.set(-55, 16, -111); sunGlow.lookAt(0, 2, 0); scene.add(sunGlow);
+  scene.fog = new THREE.Fog(0x8a5a44, 26, 95);
   scene.add(new THREE.HemisphereLight(0xffd9a0, 0x5a4632, 0.95));
   const sun = new THREE.DirectionalLight(PALETTE.sun, 1.6);
-  sun.position.set(24, 30, 14); scene.add(sun);
+  sun.position.set(-24, 30, -20); scene.add(sun);
   scene.add(new THREE.AmbientLight(0x404860, 0.5));
 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(36, 28),
@@ -104,6 +135,62 @@ export function buildWorld(scene) {
   beam.position.set(-13, 6.1, -9); scene.add(beam);
   const hook = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.6, 0.3), mat(0x222222));
   hook.position.set(-10, 5.2, -9); scene.add(hook);
+
+  // Site name boards on the back walls + yard props (barrels, sandbags,
+  // lamps, hazard barriers) so the map reads as a place, not a box.
+  function nameBoard(text, w) {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#20262e'; g.fillRect(0, 0, 512, 128);
+    g.strokeStyle = '#f5a623'; g.lineWidth = 6; g.strokeRect(6, 6, 500, 116);
+    g.fillStyle = '#f5a623'; g.font = 'bold 56px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 256, 68);
+    const t = new THREE.CanvasTexture(c);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4),
+      new THREE.MeshBasicMaterial({ map: t }));
+    return m;
+  }
+  const boardA = nameBoard('CRANE YARD', 7);
+  boardA.position.set(-13, 2.2, -13.9); scene.add(boardA);
+  const boardB = nameBoard('TANK FARM', 7);
+  boardB.position.set(13, 2.2, -13.9); scene.add(boardB);
+  function hazardTexture() {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 32;
+    const g = c.getContext('2d');
+    g.fillStyle = '#f5a623'; g.fillRect(0, 0, 128, 32);
+    g.fillStyle = '#1a1a1a';
+    for (let x = -32; x < 160; x += 32) {
+      g.beginPath(); g.moveTo(x, 32); g.lineTo(x + 16, 0); g.lineTo(x + 32, 0); g.lineTo(x + 16, 32); g.closePath(); g.fill();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = THREE.RepeatWrapping; t.repeat.set(2, 1);
+    return t;
+  }
+  const haz = hazardTexture();
+  const hazMat = new THREE.MeshStandardMaterial({ map: haz, roughness: 0.9 });
+  for (const [hx, hz, hw] of [[-6, 3.5, 3], [6, -3.5, 3], [0, -12.8, 4]]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(hw, 0.9, 0.4), hazMat);
+    m.position.set(hx, 0.45, hz); scene.add(m); solids.push(m);
+    colliders.push({ x0: hx - hw / 2, x1: hx + hw / 2, z0: hz - 0.2, z1: hz + 0.2, y0: 0, y1: 0.9, mesh: m });
+  }
+  // Barrels.
+  cylinder(-5, 8, 0.55, 1.1, PALETTE.rust);
+  cylinder(7, -2, 0.55, 1.1, PALETTE.containerB);
+  cylinder(-11, 4, 0.55, 1.1, PALETTE.rust);
+  // Sandbag rows at the mid entries.
+  box(-4, 9.5, 2.2, 0.7, 0.7, PALETTE.sandDark);
+  box(4, -9.5, 2.2, 0.7, 0.7, PALETTE.sandDark);
+  // Lamp posts with warm bulbs.
+  for (const [lx, lz] of [[0, 8], [-10, 0], [10, 0]]) {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.4, 0.12), mat(0x222222));
+    pole.position.set(lx, 1.7, lz); scene.add(pole);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffc46b }));
+    bulb.position.set(lx, 3.5, lz); scene.add(bulb);
+    colliders.push({ x0: lx - 0.1, x1: lx + 0.1, z0: lz - 0.1, z1: lz + 0.1, y0: 0, y1: 3.4, mesh: pole });
+  }
 
   // Sites: emissive ground ring + floating letter.
   const sites = {
@@ -187,4 +274,14 @@ export function nearestWaypoint(world, x, z) {
     if (d < bd) { bd = d; best = i; }
   });
   return best;
+}
+
+// Human-readable zone name for the HUD location label and radio callouts.
+export function zoneAt(world, x, z) {
+  if (Math.hypot(x + 13, z + 9) < 5.5) return 'CRANE YARD · SITE A';
+  if (Math.hypot(x - 13, z + 9) < 5.5) return 'TANK FARM · SITE B';
+  if (z > 10) return 'KESTREL SPAWN';
+  if (z < -4 && Math.abs(x) < 8) return 'HALCYON HOLD';
+  if (Math.abs(x) < 8) return 'MID LANE';
+  return x < 0 ? 'WEST YARD' : 'EAST YARD';
 }

@@ -58,6 +58,18 @@
   #startoverlay .keys { font-size:12px; opacity:.7; }
   #plantbar { position:absolute; left:50%; top:58%; transform:translateX(-50%); width:220px; text-align:center; font-size:12px; display:none; }
   #plantbar .bar > div { background:var(--amber); }
+  #minimap { position:absolute; top:12px; left:12px; border:1px solid var(--line); border-radius:6px; background:rgba(10,14,20,.78); }
+  #location { position:absolute; left:14px; bottom:96px; font-size:11px; letter-spacing:1px; opacity:.9; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:3px 8px; }
+  #radio { position:absolute; left:14px; bottom:122px; display:flex; flex-direction:column; gap:3px; font-size:12px; max-width:420px; }
+  #radio div { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:3px 8px; width:fit-content; }
+  #radio .k { color:var(--amber); } #radio .h { color:var(--teal); }
+  #nametags { position:absolute; inset:0; overflow:hidden; }
+  #nametags span { position:absolute; transform:translate(-50%,-100%); font-size:11px; font-weight:700; text-shadow:0 1px 3px #000; white-space:nowrap; }
+  #nametags .k { color:var(--amber); } #nametags .h { color:#ff6b5e; }
+  #slots { position:absolute; right:14px; bottom:96px; display:flex; gap:4px; font-size:11px; }
+  #slots span { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:3px 7px; opacity:.55; }
+  #slots span.owned { opacity:1; } #slots span.cur { border-color:var(--amber); color:var(--amber); opacity:1; }
+  #sidelabel { font-size:11px; letter-spacing:1px; opacity:.8; }
 </style>
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js" } }
@@ -66,8 +78,13 @@
 <body>
 <div id="game" oncontextmenu="return false"></div>
 <div id="hud">
-  <div id="topbar" class="panel"><span class="team k">KESTREL <b id="scoreK">0</b></span><span id="timer">1:40</span><span class="team h">HALCYON <b id="scoreH">0</b></span><span id="roundlabel">ROUND 1/9</span></div>
+  <div id="topbar" class="panel"><span class="team k">KESTREL <b id="scoreK">0</b></span><span id="timer">1:40</span><span class="team h">HALCYON <b id="scoreH">0</b></span><span id="roundlabel">ROUND 1/9</span><span id="sidelabel">ATTACK</span></div>
   <div id="killfeed"></div>
+  <canvas id="minimap" width="172" height="136"></canvas>
+  <div id="nametags"></div>
+  <div id="radio"></div>
+  <div id="location">KESTREL YARD</div>
+  <div id="slots"></div>
   <div id="crosshair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
   <div id="hitmarker"></div>
   <div id="healthbox" class="panel"><div class="row"><span>HEALTH <b id="hpnum">100</b></span><span>ARMOR <b id="armornum">0</b></span></div><div class="bar"><div id="healthbar" style="width:100%"></div></div><div class="bar" id="armorbar"><div style="width:0%"></div></div></div>
@@ -78,7 +95,7 @@
   <div id="buymenu" class="panel"><h2>BUY — <span id="buymoney">$800</span> <span style="float:right" id="buytime">20s</span></h2><div id="buyitems"></div><div class="hint">Keys 1–6 to buy · B to close · weapons stay if you survive the round</div></div>
   <div id="vignette"></div>
   <div id="spectate">SPECTATING — wait for the round to end</div>
-  <div id="startoverlay"><h1>DUSTLINE</h1><p>Round-based tactical FPS. Kestrel attacks, Halcyon defends. Plant the Spike at A or B — or eliminate the other team. Earn money, buy weapons between rounds. First to 5 rounds wins.</p><p class="keys">WASD move · Mouse look · Click shoot · R reload · Shift walk · Ctrl crouch · Space jump · E plant / defuse (hold) · B buy menu · G grenade</p><p>CLICK TO PLAY</p></div>
+  <div id="startoverlay"><h1>DUSTLINE</h1><p>Round-based tactical FPS. Kestrel attacks, Halcyon defends. Plant the Spike at A or B — or eliminate the other team. Earn money, buy weapons between rounds. First to 5 rounds wins.</p><p class="keys">WASD move · Mouse look · Click shoot · R reload · Shift walk · Ctrl crouch · Space jump · E plant / defuse (hold) · B buy menu · G grenade · Wheel switch weapon · M mute</p><p>CLICK TO PLAY</p></div>
 </div>
 <script type="module" src="./src/main.js"></script>
 </body>

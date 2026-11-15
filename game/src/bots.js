@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { moveAgent, eyePos } from './player.js';
-import { findPath, nearestWaypoint } from './world.js';
+import { findPath, nearestWaypoint, zoneAt } from './world.js';
 import { fire, aimDir } from './weapons.js';
 
 const _rc = new THREE.Raycaster();
@@ -93,7 +93,11 @@ export function stepBot(G, bot, dt) {
   }
 
   if (visible) {
-    if (ai.state !== 'engage') { ai.state = 'engage'; ai.reaction = 0.25 + Math.random() * 0.3; ai.burst = 0; }
+    visible.enemy.spottedT = G.time; // seen enemies show on the minimap + tags
+    if (ai.state !== 'engage') {
+      ai.state = 'engage'; ai.reaction = 0.25 + Math.random() * 0.3; ai.burst = 0;
+      if (G.say && Math.random() < 0.6) G.say(bot, `contact at ${zoneAt(G.world, visible.enemy.pos.x, visible.enemy.pos.z)}`);
+    }
     ai.lastKnown = visible.enemy.pos.clone();
   } else if (ai.state === 'engage') {
     ai.state = ai.lastKnown ? 'hunt' : (bot.team === 'H' ? 'hold' : 'push');
@@ -172,6 +176,7 @@ export function stepBot(G, bot, dt) {
           R.bomb.planted = true; R.bomb.site = ai.site || 'A';
           R.bomb.pos.set(site.center.x, 0.1, site.center.z);
           R.bomb.timer = 35;
+          if (G.say) G.say(bot, `spike planted at site ${ai.site || 'A'}`);
           if (G.showBanner) G.showBanner('SPIKE PLANTED', 'Halcyon must defuse', 3);
         }
       }
