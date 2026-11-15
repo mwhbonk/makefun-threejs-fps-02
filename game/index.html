@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DUSTLINE — Tactical FPS</title>
+<style>
+  :root { --amber:#f5a623; --teal:#2fa8a0; --rust:#d97b2f; --panel:rgba(12,16,22,.72); --line:rgba(255,255,255,.14); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#1a2230; font-family:ui-monospace,Menlo,Consolas,monospace; color:#e8e4d8; }
+  #game { position:fixed; inset:0; }
+  #game canvas { display:block; }
+  #hud { position:fixed; inset:0; pointer-events:none; user-select:none; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; }
+  #topbar { position:absolute; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:14px; align-items:center; padding:6px 16px; font-size:15px; }
+  #topbar .team { font-weight:700; }
+  #topbar .k { color:var(--amber); } #topbar .h { color:var(--teal); }
+  #timer { font-size:20px; font-weight:700; min-width:64px; text-align:center; }
+  #roundlabel { font-size:11px; opacity:.75; }
+  #killfeed { position:absolute; top:12px; right:12px; display:flex; flex-direction:column; gap:4px; align-items:flex-end; font-size:12px; }
+  #killfeed div { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:3px 8px; }
+  #killfeed .k { color:var(--amber); } #killfeed .h { color:var(--teal); }
+  #crosshair { position:absolute; left:50%; top:50%; width:0; height:0; }
+  #crosshair i { position:absolute; background:#fff; box-shadow:0 0 2px #000; }
+  #crosshair .t { left:-1px; top:calc(-1 * var(--gap,8px) - 8px); width:2px; height:8px; }
+  #crosshair .b { left:-1px; top:var(--gap,8px); width:2px; height:8px; }
+  #crosshair .l { top:-1px; left:calc(-1 * var(--gap,8px) - 8px); width:8px; height:2px; }
+  #crosshair .r { top:-1px; left:var(--gap,8px); width:8px; height:2px; }
+  #crosshair .dot { left:-1px; top:-1px; width:2px; height:2px; }
+  #hitmarker { position:absolute; left:50%; top:50%; width:22px; height:22px; margin:-11px 0 0 -11px; opacity:0; }
+  #hitmarker::before, #hitmarker::after { content:""; position:absolute; left:10px; top:0; width:2px; height:22px; background:#fff; transform:rotate(45deg); }
+  #hitmarker::after { transform:rotate(-45deg); }
+  #hitmarker.head::before, #hitmarker.head::after { background:#ff5252; }
+  #healthbox { position:absolute; left:14px; bottom:14px; padding:8px 12px; min-width:220px; }
+  #healthbox .row { display:flex; justify-content:space-between; font-size:13px; }
+  .bar { height:8px; background:#222; border-radius:4px; margin-top:5px; overflow:hidden; }
+  .bar > div { height:100%; background:#7dd069; }
+  #armorbar > div { background:#6fb7d9; }
+  #ammobox { position:absolute; right:14px; bottom:14px; padding:8px 14px; text-align:right; }
+  #ammo { font-size:30px; font-weight:700; line-height:1; }
+  #ammo small { font-size:14px; opacity:.7; }
+  #weaponname { font-size:13px; } #money { font-size:13px; color:var(--amber); }
+  #bombbar { position:absolute; top:64px; left:50%; transform:translateX(-50%); width:260px; padding:6px 10px; font-size:12px; text-align:center; }
+  #bombbar .bar > div { background:#ff5252; }
+  #banner { position:absolute; top:32%; left:50%; transform:translate(-50%,-50%); font-size:34px; font-weight:700; letter-spacing:2px; text-align:center; text-shadow:0 2px 12px #000; display:none; }
+  #banner small { display:block; font-size:15px; letter-spacing:1px; opacity:.85; }
+  #buymenu { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:300px; padding:12px; pointer-events:auto; display:none; }
+  #buymenu h2 { font-size:14px; color:var(--amber); margin-bottom:8px; }
+  #buymenu .item { display:flex; justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--line); font-size:13px; }
+  #buymenu .item b { color:var(--amber); }
+  #buymenu .item.cant { opacity:.45; }
+  #buymenu .hint { font-size:11px; opacity:.7; margin-top:8px; }
+  #vignette { position:absolute; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center, transparent 55%, rgba(200,0,0,.55) 100%); }
+  #spectate { position:absolute; bottom:84px; left:50%; transform:translateX(-50%); font-size:13px; background:var(--panel); padding:5px 12px; border-radius:4px; display:none; }
+  #startoverlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(10,14,20,.82); pointer-events:auto; cursor:pointer; text-align:center; }
+  #startoverlay h1 { font-size:44px; letter-spacing:6px; color:var(--amber); }
+  #startoverlay p { font-size:14px; opacity:.85; max-width:520px; line-height:1.6; }
+  #startoverlay .keys { font-size:12px; opacity:.7; }
+  #plantbar { position:absolute; left:50%; top:58%; transform:translateX(-50%); width:220px; text-align:center; font-size:12px; display:none; }
+  #plantbar .bar > div { background:var(--amber); }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud">
+  <div id="topbar" class="panel"><span class="team k">KESTREL <b id="scoreK">0</b></span><span id="timer">1:40</span><span class="team h">HALCYON <b id="scoreH">0</b></span><span id="roundlabel">ROUND 1/9</span></div>
+  <div id="killfeed"></div>
+  <div id="crosshair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
+  <div id="hitmarker"></div>
+  <div id="healthbox" class="panel"><div class="row"><span>HEALTH <b id="hpnum">100</b></span><span>ARMOR <b id="armornum">0</b></span></div><div class="bar"><div id="healthbar" style="width:100%"></div></div><div class="bar" id="armorbar"><div style="width:0%"></div></div></div>
+  <div id="ammobox" class="panel"><div id="ammo">12 <small>/ 36</small></div><div id="weaponname">P9 SIDEARM</div><div id="money">$800</div></div>
+  <div id="bombbar" class="panel" style="display:none">SPIKE ARMED<div class="bar"><div id="bombfill" style="width:100%"></div></div></div>
+  <div id="banner"></div>
+  <div id="plantbar" class="panel"><span id="plantlabel">PLANTING SPIKE</span><div class="bar"><div id="plantfill" style="width:0%"></div></div></div>
+  <div id="buymenu" class="panel"><h2>BUY — <span id="buymoney">$800</span> <span style="float:right" id="buytime">20s</span></h2><div id="buyitems"></div><div class="hint">Keys 1–6 to buy · B to close · weapons stay if you survive the round</div></div>
+  <div id="vignette"></div>
+  <div id="spectate">SPECTATING — wait for the round to end</div>
+  <div id="startoverlay"><h1>DUSTLINE</h1><p>Round-based tactical FPS. Kestrel attacks, Halcyon defends. Plant the Spike at A or B — or eliminate the other team. Earn money, buy weapons between rounds. First to 5 rounds wins.</p><p class="keys">WASD move · Mouse look · Click shoot · R reload · Shift walk · Ctrl crouch · Space jump · E plant / defuse (hold) · B buy menu · G grenade</p><p>CLICK TO PLAY</p></div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
